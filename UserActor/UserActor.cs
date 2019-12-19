@@ -47,25 +47,48 @@ namespace UserActor
             return this.StateManager.TryAddStateAsync("count", 0);
         }
 
-        /// <summary>
-        /// TODO: Replace with your own actor method.
-        /// </summary>
-        /// <returns></returns>
-        Task<int> IUserActor.GetCountAsync(CancellationToken cancellationToken)
+
+
+        public async Task AddToBasket(Guid productId, int quantity)
         {
-            return this.StateManager.GetStateAsync<int>("count", cancellationToken);
+            await StateManager.AddOrUpdateStateAsync(productId.ToString(),
+               quantity,
+               (id, oldQuantity) => oldQuantity + quantity);
         }
 
-        /// <summary>
-        /// TODO: Replace with your own actor method.
-        /// </summary>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        Task IUserActor.SetCountAsync(int count, CancellationToken cancellationToken)
+        public async Task ClearBasket()
         {
-            // Requests are not guaranteed to be processed in order nor at most once.
-            // The update function here verifies that the incoming count is greater than the current count to preserve order.
-            return this.StateManager.AddOrUpdateStateAsync("count", count, (key, value) => count > value ? count : value, cancellationToken);
+            IEnumerable<string> productIDs = await StateManager.GetStateNamesAsync();
+
+            foreach (string productId in productIDs)
+            {
+                await StateManager.RemoveStateAsync(productId);
+            }
+        }
+
+        public async Task<BasketItem[]> GetBasket()
+        {
+            var result = new List<BasketItem>();
+
+            IEnumerable<string> productIDs = await StateManager.GetStateNamesAsync();
+
+            foreach (string productId in productIDs)
+            {
+                int quantity = await StateManager.GetStateAsync<int>(productId);
+                result.Add(
+                   new BasketItem
+                   {
+                       ProductId = new Guid(productId),
+                       Quantity = quantity
+                   });
+            }
+
+            return result.ToArray();
+        }
+
+        Task<BasketItem[]> IUserActor.GetBasket()
+        {
+            throw new NotImplementedException();
         }
     }
 }
